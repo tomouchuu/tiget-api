@@ -2,66 +2,65 @@ var Xray = require('x-ray');
 var x = Xray();
 
 // Event
-x('https://tiget.net/events/66594', '#content', {
-// x('https://tiget.net/events/70074', '#content', {
-    'name': '.title-box',
-    'artists': '.performer-box',
-    'details': ['.event-detail .lead'],
-    'date': '.event-detail > div:nth-child(9) .rowdata',
-    'location': '.event-detail > div:nth-child(8) p',
-    'time': '.event-detail > div:nth-child(10) .open-start-time',
-    'prices': x('.event-detail > div:nth-child(10)', '.ticket-types > .ticket-type', [{
-        'type': '.name',
-        'prices': ['.price-box tr']
-    }]),
-    'tickets': x('.tikcet-type-row', '.reception-button-frame', [{
-        'availability': '.ticket-mark',
-        'type': '.ticket-type',
-        'price': '.value',
-        'link': 'a@href'
-    }]),
-    user: x('.event-detail > div:nth-child(11)', '.rowdata', {
-        name: '.eventer',
-        link: '.eventer@href'
-    })
-})((err, data) => {
-    console.log(err);
+module.exports = id => {
+    return new Promise(resolve => {
+        x(`https://tiget.net/events/${id}`, '#content', {
+            'name': '.pg-event__header__title',
+            'artists': '.pg-event__section.pg-event__detail > .pg-event__detail__section:nth-child(1) > .pg-event__detail__contents',
+            'details': ['.pg-event__section.pg-event__detail > .pg-event__detail__description .lead'],
+            'date': '.pg-event__section.pg-event__detail > .pg-event__detail__section:nth-child(2) > .pg-event__detail__contents',
+            'location': '.pg-event__section.pg-event__detail > .pg-event__detail__section:nth-child(4) > .pg-event__detail__contents',
+            'time': '.pg-event__ordering__program__datetime',
+            'prices': x('pg-event__detail__section', '.pg-event__detail__ticket', ['p']),
+            'tickets': x('.pg-event__ordering__program__ticket', '.c-ordering-btn', [{
+                'availability': '.c-ordering-btn__content__status',
+                'info': '.c-ordering-btn__content__name',
+                'link': 'a@href'
+            }]),
+            user: x('.pg-event__section.pg-event__detail > .pg-event__detail__section:nth-child(2)', '.pg-event__detail__contents', {
+                name: '.eventer',
+                link: '.eventer@href'
+            })
+        })((err, data) => {
+            console.log(err);
 
-    const details = data.details.join('\r\n');
+            const details = data.details.join('\r\n');
+            const time = data.time.replace('▼', '').replace(data.date, '').trim();
 
-    const tickets = [];
-    for (let i = 0; i < data.prices.length; i++) {
-        const price = data.prices[i];
-        if (!price.type) {
-            price.type = 'General'
-        }
+            const tickets = [];
+            for (let i = 0; i < data.prices.length; i++) {
+                const priceData = data.prices[i];
 
-        price.advPrice = price.prices[0].trim();
-        price.dayPrice = price.prices[1].trim();
+                const price = {
+                    type: priceData.match(/([\W]+：)+/g)[0].replace('：', ''),
+                    cost: priceData.match(/([\d,])+/g)[0]+'円',
+                    drinkRequired: /\+D/g.test(priceData)
+                }
 
-        const formattedAdvPrice = ' '+price.advPrice.slice(3).split('円')[0]+'円';
-        const matchingTicket = data.tickets.find(o => o.price === formattedAdvPrice);
+                const matchingTicket = data.tickets.find(o => o.info.includes(price.cost));
 
-        price.availability = matchingTicket.availability;
-        price.link = matchingTicket.link;
+                if (matchingTicket) {
+                    price.availability = matchingTicket.availability;
+                    price.link = matchingTicket.link;
+                }
 
-        delete price.prices;
+                tickets.push(price);
+            }
 
-        tickets.push(price);
-    }
+            const res = {
+                id: id,
+                name: data.name,
+                artists: data.artists,
+                details,
+                date: data.date,
+                location: data.location,
+                time,
+                link: `https://tiget.net/events/${id}`,
+                tickets,
+                user: data.user
+            };
 
-    const res = {
-        id: 66594,
-        name: data.name,
-        artists: data.artists,
-        details,
-        date: data.date,
-        location: data.location,
-        time: data.time,
-        link: 'https://tiget.net/events/66594',
-        tickets,
-        user: data.user
-    };
-
-    console.log(res);
-});
+            return resolve(res);
+        });
+    });
+};

@@ -1,11 +1,18 @@
 {
   "name": "tiget-api",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "API For Tiget",
   "main": "index.js",
   "author": "tomo(uchuu)",
   "dependencies": {
+    "micro": "^9.3.4",
     "moment": "^2.24.0",
     "x-ray": "^2.3.4"
+  },
+  "devDependencies": {
+    "micro-dev": "^3.0.0"
+  },
+  "scripts": {
+    "dev": "micro-dev"
   }
 }
